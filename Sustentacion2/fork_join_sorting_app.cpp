@@ -1,4 +1,4 @@
-#include <iostream>
+    #include <iostream>
 #include <vector>
 #include <thread>
 // #include <cstdlib>  //para exit()
@@ -40,41 +40,8 @@ int partition(vector<int> &lista, int p, int r ){
 
 
 //mezcla dos subarreglos contiguos orgenados lista[p..q] y lista[q+1..r] en un solo subarreglo ordenado lista[p..r]
-void merge(vector<int> &lista, int p, int q, int r){
-    int nl = q - p; //uhh deberia ser q-p +1 el tamaño no?
-    int nr = r - q - 1; //deberia ser r- q
-    vector<int> l_array;
-    vector<int> r_array;
-    for(int i=0;i<=nl;i++){l_array.push_back(lista[i+p]);} 
-    for(int i=0;i<=nl;i++){r_array.push_back(lista[q+i+1]);} // no deberia iterar nr veces?, la expresion de la derecha solo es correcta si i va de 0 a nr-1, pero como i llega a nl y nl puede ser mayor o menor que nr se copian elementos que no estan a la derecha o se salta el ultimo, ejemplo lista = [1, 4, 7, 2, 5, 8, 3, 6, 9]
-    //p0,q4,r8,la izquierda daria [1,2,3,4,5] y la derecha daria  [6,7,8,9], nl=q-p = 4 y deberia ser 5, y nr = r-q-1 = 8-4-1 = 3 deberia ser 4. En la izquierda copia 5 elementos, pero en la derecha intenta copiar 5 pero solo tiene 4 e intentara buscar lista[9] que no existe.
-    int i = 0;
-    int j = 0;
-    int k = p;
-    while(i<=nl && j<=nr){ //esto asume que ambas listas tiene nl+1 y nr+1 elementos, si las longitudes reales son diferentes (si el total no es potencia de 2), fallara
-        if(l_array[i]<=r_array[j]){
-            lista[k] = l_array[i];
-            i++;
-        }else{
-            lista[k] = r_array[j];
-            j++;
-        }
-        k++;
-    }
-    while(i<=nl){
-        lista[k] = l_array[i];
-        i++;
-        k++;
-    }
-    while(j<=nr){
-        lista[k] = r_array[j];
-        j++;
-        k++;
-    }
-}
 
 
-/*
 void merge(vector<int>& arr, int left, int mid, int right) {
     int n1 = mid - left + 1;      // número de elementos izquierda
     int n2 = right - mid;         // número de elementos derecha
@@ -95,7 +62,7 @@ void merge(vector<int>& arr, int left, int mid, int right) {
     while (i < n1) arr[k++] = L[i++];
     while (j < n2) arr[k++] = R[j++];
 }
-*/
+
 //ordena el segmento lista[p..r] usando el algoritmo de inserción, se usa cuando el tamaño del segmento es menor o igual al umbral (threshold), evitando crear hilos para problemas muy pequeños.
 void insertion_sort(vector<int> &lista,int p,int r){
      
@@ -144,8 +111,8 @@ int main(){
     mt19937 gen(rd());  //semilla no determinista
     uniform_int_distribution<> dist(1,100000); //define distribucion entre 1 a 100000
     //para valores muy grandes en potencias de dos, la diferencia entre el tamaño del treshold y el size del arreglo debe ser 2^11 ejemplo: size = 2^22 threshold = 2^11.
-    int size = (int) pow(2.0,6.0); // 64, cantida de elementos del arreglo.
-    threshold = (long) pow(2.0,3.0); // 8, umbral global
+    int size = (int) pow(2.0,16.0); // 64, cantida de elementos del arreglo.
+    threshold = (long) pow(2.0,9.0); // 8, umbral global
 
     vector<int> lista; //crea dos vectores para probar quicksort primero y merge sort despues.
     vector<int> lista_2;
@@ -156,25 +123,19 @@ int main(){
     lista_2 = lista; //el mismo contenido de la lista 1 lo pone en la lista 2.
     cout<< "size = " << size << "\n"; //imprime el tamaño del arreglo.
     cout << "quicksort: \n"; //imprime la lista antes de ordenar.
-    for(int i: lista) {
-        cout << i << " ";
-    }
+   
     cout << "\n";
     auto start = chrono::high_resolution_clock::now();
     quicksort(ref(lista),0,size-1); //llama a quicksort pasando el vector como referencia. Indices 0 y size-1 para ordenar todo el vector.
     auto end = chrono::high_resolution_clock::now();
     auto t_qs = chrono::duration_cast<chrono::microseconds>(end - start).count();
     cout << "  Quicksort : " << t_qs << " us"<< endl;
-    for(int i: lista) { 
-        cout << i << " "; //imprime el arreglo despues del quicksort.
-    }
+   
 
     //con mergesort hace lo mismo que con quicksort.
     cout << "\n";
     cout << "mergesort: \n"; 
-    for(int i: lista_2) {
-        cout << i << " ";
-    }
+    
     cout << "\n";
     
     start = chrono::high_resolution_clock::now();
@@ -182,9 +143,7 @@ int main(){
     end = chrono::high_resolution_clock::now();
     auto t_ms = chrono::duration_cast<chrono::microseconds>(end - start).count();
     cout << "  Mergesort : " << t_ms << " us"<< endl;
-    for(int i: lista_2) {
-        cout << i << " ";
-    }
+  
     cout << "\n";
     return 0;
 }

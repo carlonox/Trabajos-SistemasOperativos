@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
-#include <cstdlib>  //para exit()
+#include <cstdlib> //solo la uso para atoi
 
 // Struct para describir la región a validar, usada tambien en el libro
 struct Region {
@@ -20,7 +20,7 @@ struct Region {
 
 // Función que valida una región específica del tablero
 bool validarRegion(const std::vector<std::vector<int>>& tablero, const Region& r) { //En los parametros defino mi matriz de 2 dimensiones(vector de vectores), y asigno r como identificador de mi struct Region, estos dos seran los parametros de entrada
-    bool visto[10] = {false}; // marcador de dígitos 1..9
+    bool visto[10] = {false}; // marcador de dígitos 1..9, no uso visto[0]
     if (r.tipo == 0) { // validar fila
         for (int col = 0; col < 9; ++col) { //Escanea desde la columna 0 a la 9
             int val = tablero[r.idx][col]; //escanea cada valor de la fila mientras se mueve en columnas.
@@ -48,13 +48,10 @@ bool validarRegion(const std::vector<std::vector<int>>& tablero, const Region& r
     return true;
 }
 
-// Función que ejecutará cada hilo: valida la región y escribe el resultado en el array compartido
-void tareaValidador(const std::vector<std::vector<int>>& tablero, Region r, std::vector<bool>& resultados, int indice) { //Recibe el tablero, el struct region, el array de resultados y un indice donde debe comenzar a verificar el hilo.
-    resultados[indice] = validarRegion(tablero, r); //Le asigna a mi array de resultados mi indice de inicio.
-}
+
 
 int main(int argc, char* argv[]) {
-    // Verificar que se hayan pasado exactamente 81 números en la entrada del usuario
+    // Argument count para verificar que se hayan pasado exactamente 81 números en la entrada del usuario
     if (argc != 82) { // 1 (programa) + 81 números, argc es el contador de argumentos, sumo 1 porque argv cuenta como argumento.
         std::cerr << "Uso: " << argv[0] << " [81 números del 1 al 9]\n"; //si no pasa 81 hay error
         return 1;
@@ -65,7 +62,7 @@ int main(int argc, char* argv[]) {
     int idxArg = 1; //Indice para recorrer argumentos, comienzo en 1 porque argv[0] es el nombre del programa
     for (int i = 0; i < 9; ++i) { //Se recorren las celdas en orden fila , columna
         for (int j = 0; j < 9; ++j) {
-            int val = std::atoi(argv[idxArg++]);
+            int val = std::atoi(argv[idxArg++]); //convierte char a int
             if (val < 1 || val > 9) {
                 std::cerr << "Error: todos los valores deben estar entre 1 y 9.\n";
                 return 1;
@@ -98,7 +95,7 @@ int main(int argc, char* argv[]) {
     });
 
     // Hilo 1: valida todas las columnas
-    hilos.emplace_back([&]() {
+    hilos.emplace_back([&]() { //Lambda es el codigo que se ejecutara en el hilo, 
         bool ok = true;
         for (int c = 0; c < 9; ++c) {
             Region r;
