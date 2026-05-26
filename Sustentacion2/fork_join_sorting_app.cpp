@@ -1,17 +1,15 @@
 #include <iostream>
 #include <vector>
-#include <thread>
-#include <random>
-#include <cmath>
-#include <atomic>
-#include <chrono>   // para medición de tiempos
-#include <algorithm> // para is_sorted (verificación opcional)
-// comando para ejecutar programa:  g++ -std=c++11 -pthread  fork_join_sorting_app.cpp -o a
+#include <random>     // libreria para obtener números aleatorios
+#include <cmath>      // libreria de funciones matemáticas
+#include <chrono>     // para medición de tiempos
+#include <algorithm>  // para is_sorted (verificación opcional)
+#include <omp.h>      // IMPORTANTE para utilizar librería openMP verificar que sí esté instalada en la máquina plz.
+
+// IMPORTANTE 2 comando para ejecutar programa:  g++ -std=c++17 -fopenmp fork_join_sorting_app.cpp -o a
 
 using namespace std;
-long threshold;
-atomic<long> counter_quick(0);
-atomic<long> counter_merge(0);
+long threshold; //threshold indica el límite inferior en merge y quick, evita llamadas recursivas en subarreglos pequeños y  ejecuta un insertion sort.
 random_device rd;  
 mt19937 gen(rd());  //semilla no determinista
 
@@ -35,11 +33,7 @@ int partition(vector<int> &lista, int p, int r ){
     return i + 1; //devuelvo la posicion del pivote
 }
 
-
-
 //mezcla dos subarreglos contiguos orgenados lista[p..q] y lista[q+1..r] en un solo subarreglo ordenado lista[p..r]
-
-
 void merge(vector<int>& arr, int left, int mid, int right) {
     int n1 = mid - left + 1;      // número de elementos izquierda
     int n2 = right - mid;         // número de elementos derecha
@@ -72,6 +66,7 @@ void insertion_sort(vector<int> &lista,int p,int r){
     }
 }
 
+// escoger un pivote aleatorio, para que quicksort sea un algoritmo aleatorizado y logre un O(n log(n))
 int randomized_partition(vector<int> &lista, int p, int r){
     uniform_int_distribution<> dist(p,r); //intervalo para pivote aleatorizado
     long i = dist(gen);
@@ -79,98 +74,120 @@ int randomized_partition(vector<int> &lista, int p, int r){
     return partition(lista,p,r);
 }
 
-//funcion del quicksort
-void quicksort(vector<int> &lista, int p, int r){
-    if((r-p)<=threshold){ //diferencia de indices que me da 1 menos que la cantidad de elementos. si la diferencia de indices es menor o igual al threshold, entonces no se siguen creando mas hilos, y se ordena con insertion sort   //(r - p + 1)
+//función quick sort
+void quick_sort(vector<int> &lista, int p, int r){
+    if((r-p+1)<=threshold){ //diferencia de indices que me da 1 menos que la cantidad de elementos. si la diferencia de indices es menor o igual al threshold, entonces no se siguen creando mas hilos, y se ordena con insertion sort   //(r - p + 1)
         insertion_sort(lista,p,r);
     }
     else{
-        int q = randomized_partition(lista,p,r); //buscar partición de manera aleatoria
-        thread left (quicksort,ref(lista),p,q-1); //este hilo ejecutara quicksort para la parte izquierda del arreglo
-        thread right (quicksort,ref(lista),q+1,r); //este hilo ejecutara quicksort para la parte derecha del arreglo
-        left.join();
-        right.join();
+        int q = randomized_partition(lista,p,r); // obtener pivote
+        #pragma omp task shared(lista) // como lista es un recurso que comparten las tareas que se crean, toca indicarlo con shared()
+        quick_sort(ref(lista),p,q-1);  // llamadas recursivas
+        #pragma omp task shared(lista)
+        quick_sort(ref(lista),q+1,r);
+        #pragma omp taskwait // esperar que las tareas finalicen, eliminar condición de carrera
     }
 }
 
-//divide el segmento lista[p..r] en dos partes de tamaño aproximadamente igual, ordena cada parte en apralelo usando hilos, y mezcla o hace merge de las dos mitades ya ordenadas para tener un segmento completo ordenado.
+//función merge sort
 void merge_sort(vector<int> &lista, int p,int r){ //entra el vector a ordenar.
-    if((r-p)<=threshold){ //si la diferencia de indices es menor o igual al threshhold, entonces no se siguen creando hilos y se ordena el segmento con insertion sort. (r - p + 1)??
+    if((r-p+1)<=threshold){
         insertion_sort(lista, p, r);
     }
     else{
-        int q = (p+r)/2; //calcula el punto medio, por ejemplo p=0, r=7, entonces q=3, entonces el segmento se divide en lista[0..3] y lista[4..7]
-        thread left (merge_sort,ref(lista),p,q); //crea dos hilos para ordenar cada mitad del segmento en paralelo. el primer hilo ordenara la parte izquierda del segmento, y el segundo hilo ordenara la parte derecha del segmento.
-        thread right (merge_sort,ref(lista),q+1,r);  //ref es mi referencia al vector lista, para que los hilos puedan modificar el mismo vector. el primero modifica la parte izquierda y el segundo hilo ordenara la parte derecha del segmento.
-        left.join(); //espera a que ambos hilos terminen.
-        right.join();
-        merge(lista,p,q,r); //une ambas listas ordenadas.
+        int q = (p+r)/2;
+        #pragma omp task shared(lista)
+        merge_sort(ref(lista),p,q);
+        #pragma omp task shared(lista)
+        merge_sort(ref(lista),q+1,r);
+        #pragma omp taskwait
+        merge(lista,p,q,r); 
+    }
+}
+// iniciar paralelismo de merge sort
+void start_merge_parallel(vector<int> &lista, int p,int r){
+    #pragma omp parallel num_threads(4)
+    {
+    #pragma omp single
+    {
+    merge_sort(ref(lista),p,r);
+    }
+    }
+}
+// iniciar paralelismo de quick sort
+void start_quick_parallel(vector<int> &lista, int p, int r){
+    #pragma omp parallel num_threads(4)
+    {
+    #pragma omp single
+    {
+    quick_sort(ref(lista),p,r);
+    }
     }
 }
 
 // función verificadora, se encarga de ver que ambas listas sean iguales y que estén en orden.
 void verificacion(vector<int> lista, vector<int> lista_2){
-    if(!is_sorted(lista.begin(),lista.end()) && is_sorted(lista_2.begin(),lista_2.end())) cout << "lista A no está ordenada.\n";
+    if(!is_sorted(lista.begin(),lista.end()) && is_sorted(lista_2.begin(),lista_2.end())) cout << "lista A no está ordenadas.\n";
     else if(!is_sorted(lista_2.begin(),lista_2.end()) && is_sorted(lista.begin(),lista.end())) cout << "lista B no está ordenada\n";
     else if(!is_sorted(lista_2.begin(),lista_2.end()) && !is_sorted(lista.begin(),lista.end())) cout << "listas A y B no están ordenada\n";
     else cout << "listas A y B están ordenadas.";
 }
+//imprimir lista, pruebas para listas pequeñas.
+void print_lista(vector<int> lista){
+    for(int i: lista) {
+        cout << i << " ";   
+    }
+    cout << "\n";
+}
 
 int main(){
     uniform_int_distribution<> dist(1,100000); //define distribucion entre 1 a 100000
-    //para valores muy grandes en potencias de dos, la diferencia entre el tamaño del treshold y el size del arreglo debe ser 2^11 ejemplo: size = 2^22 threshold = 2^11.
-    int size = (int) pow(2.0,20.0); // 64, cantida de elementos del arreglo.
-    threshold = (long) pow(2.0,10.0); // 8, umbral global
+    //para valores muy grandes en potencias de dos, si se desea un tamaño específico descomentar intercambiar por las variables de abajo.
+    int size = (int) pow(2.0,26.0); // indica 2^n elementos de lista
+    threshold = (long) pow(2.0,7.0); // indica 2^n elementos de threshold
+    // int size = 1000000;
+    // threshold = 100;
 
-    vector<int> lista; //crea dos vectores para probar quicksort primero y merge sort despues.
+    vector<int> lista; //crea dos vectores para probar quick_sort primero y merge sort despues.
     vector<int> lista_2;
     for (int i = 0; i < size; ++i) {
-        lista.push_back(dist(gen)); //llena la lista con 64 numeros aleatorios.
+        lista.push_back(dist(gen)); //llena la lista con numeros aleatorios.
     }
 
     lista_2 = lista; //el mismo contenido de la lista 1 lo pone en la lista 2.
 
-    cout << "Verificación #1 ";
+    cout << "Verificación #1 "; //verificar que lista y lista_2 no están ordenadas
     verificacion(lista,lista_2);
 
     cout<< "size = " << size << "\n"; //imprime el tamaño del arreglo.
     cout<< "threshold = " << threshold << "\n"; // imprime el tamaño del threshold
 
-    cout << "quicksort: \n"; //imprime la lista antes de ordenar.
-    // print lista para testeo
-    // for(int i: lista) {
-    //     cout << i << " ";
-    // }
-    // cout << "\n";
-    auto start = chrono::high_resolution_clock::now();
-    quicksort(ref(lista),0,size-1); //llama a quicksort pasando el vector como referencia. Indices 0 y size-1 para ordenar todo el vector.
+    cout << "\nquicksort: \n";
+    // print_lista(lista); // si se desea ver la lista descomentar esta línea
+    auto start = chrono::high_resolution_clock::now(); // medir tiempo de ejecución
+    start_quick_parallel(ref(lista),0,size-1); //llama a quicksort pasando el vector como referencia. Indices 0 y size-1 para ordenar todo el vector.
     auto end = chrono::high_resolution_clock::now();
     auto t_qs = chrono::duration_cast<chrono::microseconds>(end - start).count();
-    cout << "Tiempo Quicksort : " << t_qs << " us"<< endl;
-    // for(int i: lista) {
-    //     cout << i << " ";   
-    // }
-    // cout << "\n";
+    cout << "Tiempo Quicksort: " << t_qs << " us"<< endl;
+    // print_lista(lista);
 
-    //con mergesort hace lo mismo que con quicksort.
-    cout << "mergesort: \n"; 
-    cout << "Verificación #2 ";
+    //MergeSort, se realiza lo mismo que con QuickSort
+    cout << "\nVerificación #2 "; // verificar que lista está ordenada y lista_2 no
     verificacion(lista,lista_2);
-    // for(int i: lista_2) {
-    //     cout << i << " ";   
-    // }
-    // cout << "\n";
+
+    cout << "\nmergesort: \n"; 
+    // print_lista(lista_2); // si se desea imprimir las listas para verificar que sí están ordenadas.
     start = chrono::high_resolution_clock::now();
-    merge_sort(ref(lista_2),0,size-1);
+    start_merge_parallel(ref(lista_2),0,size-1);
     end = chrono::high_resolution_clock::now();
     auto t_ms = chrono::duration_cast<chrono::microseconds>(end - start).count();
     cout << "Tiempo Mergesort : " << t_ms << " us"<< endl;
-    cout << "Verificación #3 ";
+    // print_lista(lista_2);
+
+    cout << "\nVerificación #3 ";//última verificación que ambas listas han sido ordenadas satisfactoriamente.
     verificacion(lista,lista_2);
-    // for(int i: lista_2) {
-    //     cout << i << " ";   
-    // }
     cout << "\n";
-    
+
+    //fin
     return 0;
 }
