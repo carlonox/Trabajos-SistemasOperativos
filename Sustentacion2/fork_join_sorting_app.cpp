@@ -6,12 +6,19 @@
 #include <algorithm>  // para is_sorted (verificación opcional)
 #include <omp.h>      // IMPORTANTE para utilizar librería openMP verificar que sí esté instalada en la máquina plz.
 
-// IMPORTANTE 2 comando para ejecutar programa:  g++ -std=c++17 -fopenmp fork_join_sorting_app.cpp -o a
+// IMPORTANTE 2 comando para ejecutar programa:  g++ -std=c++17 -fopenmp fork_join_sorting_app.cpp -o (nombre que le quiera poner)
+
+/*
+COMANDOS LINUX:
+comando para revisar el número de procesadores de máquina: nproc
+comando para revisar el max de hilos posibles en el SO cat /proc/sys/kernel/threads-max
+*/
+
 
 using namespace std;
 long threshold; //threshold indica el límite inferior en merge y quick, evita llamadas recursivas en subarreglos pequeños y  ejecuta un insertion sort.
-random_device rd;  
-mt19937 gen(rd());  //semilla no determinista
+random_device rd;   // generador no determista 
+mt19937 gen(rd());  // se utiliza como semilla el mersenne twister. Un generador de número pseudoaleatorios.
 
 //organiza todos los menores al pivote a la izquierda y los mayores a la derecha, devuelve la posicion del pivote
 int partition(vector<int> &lista, int p, int r ){
@@ -80,12 +87,12 @@ void quick_sort(vector<int> &lista, int p, int r){
         insertion_sort(lista,p,r);
     }
     else{
-        int q = randomized_partition(lista,p,r); // obtener pivote
-        #pragma omp task shared(lista) // como lista es un recurso que comparten las tareas que se crean, toca indicarlo con shared()
-        quick_sort(ref(lista),p,q-1);  // llamadas recursivas
+        int q = randomized_partition(lista,p,r);
+        #pragma omp task shared(lista)
+        quick_sort(ref(lista),p,q-1);  
         #pragma omp task shared(lista)
         quick_sort(ref(lista),q+1,r);
-        #pragma omp taskwait // esperar que las tareas finalicen, eliminar condición de carrera
+        #pragma omp taskwait 
     }
 }
 
@@ -96,23 +103,35 @@ void merge_sort(vector<int> &lista, int p,int r){ //entra el vector a ordenar.
     }
     else{
         int q = (p+r)/2;
+        // creación de las tareas a realizar por los hilos, utilizar la clausula shared para que tengan acceso las tareas
+        // a la lista a ordenar, sin ello queda por default privada y los cambios no se guardarán.
         #pragma omp task shared(lista)
         merge_sort(ref(lista),p,q);
         #pragma omp task shared(lista)
         merge_sort(ref(lista),q+1,r);
+        // condicional para evitar condiciones de carrera, indica que se debe esperar a que las tareas (linea 108 y 111)
+        // terminen antes de poder ejecutar el algoritmo de merge.
         #pragma omp taskwait
         merge(lista,p,q,r); 
     }
 }
 // iniciar paralelismo de merge sort
 void start_merge_parallel(vector<int> &lista, int p,int r){
+    //OpenMP utiliza el modelo fork-join para ralizar tareas de paralelización por medio de multihilos.
+    //se crea una región paralela sobre un hilo maestro, se designa que el máximo de hilos producidos serán 4 Fork.
     #pragma omp parallel num_threads(4)
     {
+    /*
+    por medio del constructor single, se escoge uno de los hilos creados y tendrá la tarea de crear la piscina de tareas
+    al para ejecutar y los otros hilos quedarán esperando que finalice al final de la llave (linea 127). Los hilos irán ejecutando
+    las tareas creadas de manera paralela.
+    */
     #pragma omp single
     {
     merge_sort(ref(lista),p,r);
     }
     }
+    //al finalizar las bifurcaciones vuelven al hilo original al terminar la tarea (join)
 }
 // iniciar paralelismo de quick sort
 void start_quick_parallel(vector<int> &lista, int p, int r){
