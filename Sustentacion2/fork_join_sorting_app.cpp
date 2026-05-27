@@ -92,7 +92,7 @@ void quick_sort(vector<int> &lista, int p, int r){
         quick_sort(ref(lista),p,q-1);  
         #pragma omp task shared(lista)
         quick_sort(ref(lista),q+1,r);
-        #pragma omp taskwait 
+        // #pragma omp taskwait 
     }
 }
 
@@ -149,7 +149,7 @@ void verificacion(vector<int> lista, vector<int> lista_2){
     if(!is_sorted(lista.begin(),lista.end()) && is_sorted(lista_2.begin(),lista_2.end())) cout << "lista A no está ordenadas.\n";
     else if(!is_sorted(lista_2.begin(),lista_2.end()) && is_sorted(lista.begin(),lista.end())) cout << "lista B no está ordenada\n";
     else if(!is_sorted(lista_2.begin(),lista_2.end()) && !is_sorted(lista.begin(),lista.end())) cout << "listas A y B no están ordenada\n";
-    else cout << "listas A y B están ordenadas.";
+    else cout << "listas A y B están ordenadas.\n";
 }
 //imprimir lista, pruebas para listas pequeñas.
 void print_lista(vector<int> lista){
@@ -162,16 +162,21 @@ void print_lista(vector<int> lista){
 int main(){
     uniform_int_distribution<> dist(1,100000); //define distribucion entre 1 a 100000
     //para valores muy grandes en potencias de dos, si se desea un tamaño específico descomentar intercambiar por las variables de abajo.
-    int size = (int) pow(2.0,26.0); // indica 2^n elementos de lista
-    threshold = (long) pow(2.0,7.0); // indica 2^n elementos de threshold
+    int size = (int) pow(2.0,18.0); // indica 2^n elementos de lista
+    // threshold = (long) pow(2.0,7.0); // indica 2^n elementos de threshold
     // int size = 1000000;
-    // threshold = 100;
-
+    threshold = 30; // probar 0
+    if(threshold<1){
+        cout << "threshold debe ser mayor a 1.\n";
+        return 0;
+    }
     vector<int> lista; //crea dos vectores para probar quick_sort primero y merge sort despues.
     vector<int> lista_2;
-    for (int i = 0; i < size; ++i) {
-        lista.push_back(dist(gen)); //llena la lista con numeros aleatorios.
-    }
+    //for (int i = 0; i < size; ++i) { //lista aleatoria
+    //    lista.push_back(dist(gen)); //llena la lista con numeros aleatorios.
+    //}
+    // for(int i=0;i<size;i++) lista.push_back(i); //lista ordenada
+    for(int i=size;i>0;i--) lista.push_back(i); // lista inversa
 
     lista_2 = lista; //el mismo contenido de la lista 1 lo pone en la lista 2.
 
