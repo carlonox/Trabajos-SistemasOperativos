@@ -165,18 +165,18 @@ int main(){
     int size = (int) pow(2.0,18.0); // indica 2^n elementos de lista
     // threshold = (long) pow(2.0,7.0); // indica 2^n elementos de threshold
     // int size = 1000000;
-    threshold = 30; // probar 0
+    threshold = 100; // probar 0
     if(threshold<1){
         cout << "threshold debe ser mayor a 1.\n";
         return 0;
     }
     vector<int> lista; //crea dos vectores para probar quick_sort primero y merge sort despues.
     vector<int> lista_2;
-    //for (int i = 0; i < size; ++i) { //lista aleatoria
-    //    lista.push_back(dist(gen)); //llena la lista con numeros aleatorios.
-    //}
+    for (int i = 0; i < size; ++i) { //lista aleatoria
+        lista.push_back(dist(gen)); //llena la lista con numeros aleatorios.
+    }
     // for(int i=0;i<size;i++) lista.push_back(i); //lista ordenada
-    for(int i=size;i>0;i--) lista.push_back(i); // lista inversa
+    //for(int i=size;i>0;i--) lista.push_back(i); // lista inversa
 
     lista_2 = lista; //el mismo contenido de la lista 1 lo pone en la lista 2.
 

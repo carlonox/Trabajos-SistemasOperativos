@@ -82,6 +82,7 @@ int main(int argc, char* argv[]) {
     rFilas.tipo = 0;   // indica que es una fila
     // No necesitamos idx (Porque fila e idx serian lo mismo), recorreremos todas dentro del hilo
     hilos.emplace_back([&]() {
+        
         bool ok = true;
         for (int f = 0; f < 9; ++f) {
             Region r;

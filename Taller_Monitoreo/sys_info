@@ -1,0 +1,60 @@
+#!/bin/bash
+# Program to output a system information page
+CURRENT_TIME="$(date)"
+report_uptime() {
+ cat << _EOF_
+<h2>System Uptime</h2>
+<pre>$(uptime)</pre>
+_EOF_
+}
+report_memory() {
+ cat <<< "<h2>Memory Usage</h2>"
+ cat <<< "<pre>$(free -h)</pre>"
+ cat <<< "<h3>Detalle de /proc/meminfo</h3>"
+ cat <<< "<pre>$(grep -E '^MemTotal|^MemFree|^MemAvailable|^Shmem:|^Cached|^Buffer' /proc/meminfo)</pre>"
+}
+
+
+report_disk_space() {
+ cat << _EOF_
+<h2>Disk Space</h2>
+<pre>$(df -h)</pre>
+_EOF_
+}
+report_home_space() {
+ cat <<< "<h2>Home Space</h2>"
+ if [[ $EUID -eq 0 ]]; then
+ # Si somos root, mostrar info de todos los usuarios
+ cat <<< "<h3>Todos los usuarios</h3>"
+ while IFS=: read -r user _ uid _ _ home _; do
+ if [[ -d "$home" ]]; then
+ count=$(find "$home" -type f 2>/dev/null | wc -l)
+ cat <<< "<p>Usuario: $user - Archivos: $count</p>"
+ cat <<< "<pre>$(find "$home" -type f -ls \
+ 2>/dev/null | head -20)</pre>"
+ fi
+ done < <(getent passwd)
+ else
+ # Si somos usuario normal, solo nuestro home
+ cat <<< "<h3>Usuario: $USER</h3>"
+ count=$(find "$HOME" -type f 2>/dev/null | wc -l)
+ cat <<< "<p>Archivos en $HOME: $count</p>"
+ cat <<< "<pre>$(find "$HOME" -type f -ls \
+ 2>/dev/null | head -20)</pre>"
+ fi
+}
+cat << _EOF_
+<html>
+  <head>
+    <title>$HOSTNAME - System Information Report</title>
+  </head>
+  <body>
+    <h1>$HOSTNAME - System Information Report</h1>
+    <p>Generado $CURRENT_TIME, by $USER.</p>
+    $(report_uptime)
+    $(report_memory)
+    $(report_disk_space)
+    $(report_home_space)
+  </body>
+</html>
+_EOF_
